@@ -1,0 +1,110 @@
+#include <iostream>
+#include <string>
+using namespace std;
+
+const int N = 3;
+
+void dodaj_osobe(string *tab_nazwisko, string nazwisko, int *tab_indeks, int indeks, string *tab_imie, string imie, int i) {
+    tab_nazwisko[i] = nazwisko;
+    tab_indeks[i] = indeks;
+    tab_imie[i] = imie;
+}
+
+void ustaw_obecnosc(string *tab_nazwisko, bool *tab_obecnosc, string nazwisko, bool obecnosc) {
+    for (int i = 0; i < N; i++) {
+        if (tab_nazwisko[i] == nazwisko) {
+            tab_obecnosc[i] = obecnosc;
+        }
+    }
+}
+
+void pokaz_liste(string *tab_nazwisko, bool *tab_obecnosc, int *tab_indeks, string *tab_imie) {
+    cout << "\nAKTUALNY STAN LISTY:" << endl;
+    for (int i = 0; i < N; i++) {
+        cout << "[" << tab_indeks[i] << "] " << tab_imie[i] << " " << tab_nazwisko[i] << " - Status: " << tab_obecnosc[i] << endl;
+    }
+}
+
+void edytuj_osobe(string *tab_nazwisko, int *tab_indeks, string *tab_imie, bool *tab_obecnosc, string edytuj) {
+    for (int i = 0; i < N; i++) {
+        if (tab_nazwisko[i] == edytuj) {
+            cout << "Wprowadzanie zmian dla: " << edytuj << endl;
+            cout << "Nowy nr albumu: "; 
+            cin >> tab_indeks[i];
+            cout << "Nowe imie: "; 
+            cin >> tab_imie[i];
+            cout << "Nowe nazwisko: "; 
+            cin >> tab_nazwisko[i];
+            cout << "Obecnosc (1/0): "; 
+            cin >> tab_obecnosc[i];
+            return;
+        }
+    }
+    cout << "Brak osoby w systemie." << endl;
+}
+
+void usun_osobe(string *tab_nazwisko, int *tab_indeks, string *tab_imie, bool *tab_obecnosc, string edytuj) {
+    for (int i = 0; i < N; i++) {
+        if (tab_nazwisko[i] == edytuj) {
+            for (int j = i; j < N - 1; j++) {
+                tab_indeks[j] = tab_indeks[j + 1];
+                tab_imie[j] = tab_imie[j + 1];
+                tab_nazwisko[j] = tab_nazwisko[j + 1];
+                tab_obecnosc[j] = tab_obecnosc[j + 1];
+            }
+            tab_indeks[N - 1] = 0;
+            tab_imie[N - 1] = "";
+            tab_nazwisko[N - 1] = "";
+            tab_obecnosc[N - 1] = 0;
+            cout << "Rekord osoby " << edytuj << " zostal skasowany." << endl;
+            return;
+        }
+    }
+}
+
+int main() {
+    int tab_indeks[N] = {0}, nr_indeksu, wybor_uzytkownika;
+    string tab_imie[N], imie_osoby, tab_nazwisko[N], nazwisko_osoby, tekst_do_edycji;
+    bool tab_obecnosc[N] = {0}, czy_obecny, czy_menu_aktywne = true;
+
+    cout << "SYSTEM OBSLUGI GRUPY" << endl;
+
+    while (czy_menu_aktywne) {
+        cout << "\nOPCJE: 1-Dodaj osobe, 2-Edytuj dane, 3-Usun dane, 4-Wyjdz\nTwoja decyzja: ";
+        cin >> wybor_uzytkownika;
+
+        if (wybor_uzytkownika == 1) {
+            for (int i = 0; i < N; i++) {
+                cout << "Wpisz nr " << i + 1 << endl;
+                cout << "Indeks: "; 
+                cin >> nr_indeksu;
+                cout << "Imie: "; 
+                cin >> imie_osoby;
+                cout << "Nazwisko: "; 
+                cin >> nazwisko_osoby;
+                cout << "Obecny (1/0): "; 
+                cin >> czy_obecny;
+                dodaj_osobe(tab_nazwisko, nazwisko_osoby, tab_indeks, nr_indeksu, tab_imie, imie_osoby, i);
+                ustaw_obecnosc(tab_nazwisko, tab_obecnosc, nazwisko_osoby, czy_obecny);
+            }
+            pokaz_liste(tab_nazwisko, tab_obecnosc, tab_indeks, tab_imie);
+        } 
+        else if (wybor_uzytkownika == 2) {
+            cout << "Nazwisko do zmiany: ";
+            cin >> tekst_do_edycji;
+            edytuj_osobe(tab_nazwisko, tab_indeks, tab_imie, tab_obecnosc, tekst_do_edycji);
+            pokaz_liste(tab_nazwisko, tab_obecnosc, tab_indeks, tab_imie);
+        } 
+        else if (wybor_uzytkownika == 3) {
+            cout << "Nazwisko do usuniecia: ";
+            cin >> tekst_do_edycji;
+            usun_osobe(tab_nazwisko, tab_indeks, tab_imie, tab_obecnosc, tekst_do_edycji);
+            pokaz_liste(tab_nazwisko, tab_obecnosc, tab_indeks, tab_imie);
+        } 
+        else {
+            cout << "Wylaczanie bazy" << endl;
+            czy_menu_aktywne = false;
+        }
+    }
+    return 0;
+}
