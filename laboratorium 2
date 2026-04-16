@@ -1,141 +1,179 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <string>
+
 using namespace std;
 
 const int N = 3;
 
-class Osoba{
-    private:
+class Osoba {
+private:
     int indeks;
     string imie;
     string nazwisko;
-    bool obecnosc;
-    public:
-    void setline(string wartosc);
-    string getline();
+public:
+    Osoba(int startowy_indeks = 0, string startowe_imie = "", string startowe_nazwisko = "") {
+        indeks = startowy_indeks;
+        imie = startowe_imie;
+        nazwisko = startowe_nazwisko;
+    }
+    void ustaw_indeks(int wartosc) { indeks = wartosc; }
+    void ustaw_imie(string wartosc) { imie = wartosc; }
+    void ustaw_nazwisko(string wartosc) { nazwisko = wartosc; }
+    int pobierz_indeks() { return indeks; }
+    string pobierz_imie() { return imie; }
+    string pobierz_nazwisko() { return nazwisko; }
 };
 
-void Osoba::setline(string wartosc) {
-    if(length!=1) {
-        imie = wartosc;
-    }
-}
-string Osoba::getline() {
-    return imie;
-}
-void Osoba::setline(string wartosc1) {
-    if(length!=1) {
-        nazwisko = wartosc1;
-    }
-}
-string Osoba::getline() {
-    return nazwisko;
-}
-void Osoba::setline(int wartosc2) {
-    if(length!=1) {
-        indeks = wartosc2;
-    }
-}
-string Osoba::getline() {
-    return indeks;
-}
-
-class obecnosc {
-    private:
-    Osoba lista_osob[N];
-    public:
-    void dodaj_nowych(){
-        for(int i = 0; i<N; i++) {
-            cout << "Wpisywanie danych dla studenta numer " << i+1 << endl;
-            cout << "Indeks: ";
-            cin >> lista_osob[i].indeks;
-            cout << "Imie: ";
-            cin >> lista_osob[i].imie;
-            cout << "Nazwisko: ";
-            cin >> lista_osob[i].nazwisko;
-            cout << "Czy oobecny: ";
-            cin >> lista_osob[i].obecnosc;
+int szukaj_osoby(string szukane_nazwisko, Osoba *baza_osob) {
+    for (int i = 0; i < N; i++) {
+        if (baza_osob[i].pobierz_nazwisko() == szukane_nazwisko) {
+            return i;
         }
     }
+    return -1;
 }
 
-
-void edytuj_osobe() {
+void edytuj_osobe(Osoba *baza_osob, string tekst_do_edycji) {
     for (int i = 0; i < N; i++) {
-        if (nazwisko == edytuj) {
-            cout << "Wprowadzanie zmian dla: " << edytuj << endl;
-            cout << "Nowy nr albumu: "; 
-            cin >> indeks;
-            cout << "Nowe imie: "; 
-            cin >> imie;
-            cout << "Nowe nazwisko: "; 
-            cin >> nazwisko;
-            cout << "Obecnosc (1/0): "; 
-            cin >> obecnosc;
+        if (baza_osob[i].pobierz_nazwisko() == tekst_do_edycji) {
+            int nowy_indeks;
+            string nowe_imie, nowe_nazwisko;
+            cout << "Podaj nowy indeks: "; cin >> nowy_indeks;
+            cout << "Podaj nowe imie: "; cin >> nowe_imie;
+            cout << "Podaj nowe nazwisko: "; cin >> nowe_nazwisko;
+            baza_osob[i].ustaw_indeks(nowy_indeks);
+            baza_osob[i].ustaw_imie(nowe_imie);
+            baza_osob[i].ustaw_nazwisko(nowe_nazwisko);
             return;
         }
     }
-    cout << "Brak osoby w systemie." << endl;
+    cout << "Nie znaleziono takiego nazwiska!" << endl;
 }
 
-void usun_osobe() {
+void usun_osobe(Osoba *baza_osob, string tekst_do_edycji) {
+    int pozycja = szukaj_osoby(tekst_do_edycji, baza_osob);
+    if (pozycja != -1) {
+        baza_osob[pozycja] = Osoba();
+        cout << "Osoba usunieta." << endl;
+    } else {
+        cout << "Nie ma kogo usunac, brak nazwiska w bazie." << endl;
+    }
+}
+
+int szukaj_pustego_miejsca(Osoba *baza_osob) {
     for (int i = 0; i < N; i++) {
-        if (nazwisko == edytuj) {
-            for (int j = i; j < N - 1; j++) {
-                indeks[j] = indeks[j+1];
-                imie[j] = tab_imie[j+1];
-                nazwisko[j] = nazwisko[j + 1];
-                tobecnosc = obecnosc[j + 1];
-            }
-            indeks = 0;
-            imie = "";
-            nazwisko= "";
-            obecnosc = 0;
-            cout << "Rekord osoby " << edytuj << " zostal skasowany." << endl;
-            return;
+        if (baza_osob[i].pobierz_nazwisko() == "") {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void dodaj_osobe(Osoba *baza_osob, Osoba nowa_osoba) {
+    int pozycja = szukaj_pustego_miejsca(baza_osob);
+    if (pozycja != -1) {
+        baza_osob[pozycja] = nowa_osoba;
+    } else {
+        cout << "Nie ma juz miejsca na nowa osobe!" << endl;
+    }
+}
+
+int szukaj_pustego_wskaznika(Osoba **lista_wsk) {
+    for (int i = 0; i < N; i++) {
+        if (lista_wsk[i] == NULL) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+void ustaw_obecnosc_na_liscie(Osoba *baza_osob, Osoba **wybrana_lista, bool *tab_obecnosc, string nazwisko_osoby, bool czy_obecny) {
+    int index_baza = szukaj_osoby(nazwisko_osoby, baza_osob);
+    if (index_baza != -1) {
+        int index_lista = szukaj_pustego_wskaznika(wybrana_lista);
+        wybrana_lista[index_lista] = &baza_osob[index_baza];
+        tab_obecnosc[index_lista] = czy_obecny;
+    } else {
+        cout << "Nie znaleziono osoby, wiec nie mozna jej przypisac." << endl;
+    }
+}
+
+void pokaz_liste(Osoba **wybrana_lista, bool *tab_obecnosc) {
+    for (int i = 0; i < N; i++) {
+        if (wybrana_lista[i] != NULL && wybrana_lista[i]->pobierz_nazwisko() != "") {
+            cout << wybrana_lista[i]->pobierz_indeks() 
+                 << " - " << wybrana_lista[i]->pobierz_imie() 
+                 << " " << wybrana_lista[i]->pobierz_nazwisko() 
+                 << " obecnosc: " << tab_obecnosc[i] << endl;
         }
     }
 }
 
 int main() {
-    int tab_indeks[N] = {0}, nr_indeksu, wybor_uzytkownika;
-    string tab_imie[N], imie_osoby, tab_nazwisko[N], nazwisko_osoby, tekst_do_edycji;
-    bool tab_obecnosc[N] = {0}, czy_obecny, czy_menu_aktywne = true;
+    Osoba baza_osob[N];
+    Osoba *wsk_lista1[N] = {NULL};
+    bool obecnosc_lista1[N] = {false};
+    Osoba *wsk_lista2[N] = {NULL};
+    bool obecnosc_lista2[N] = {false};
+    bool czy_menu_aktywne = true;
+    int wybor_uzytkownika;
+    string imie_osoby, nazwisko_osoby, tekst_do_edycji;
+    int nr_indeksu, numer_wybranej_listy;
+    bool czy_obecny;
 
-    cout << "SYSTEM OBSLUGI GRUPY" << endl;
+    cout << "Program do obslugi list studentow" << endl;
 
     while (czy_menu_aktywne) {
-        cout << "\nOPCJE: 1-Dodaj osobe, 2-Edytuj dane, 3-Usun dane, 4-Wyjdz\nTwoja decyzja: ";
+        cout << "\nWybierz opcje:" << endl;
+        cout << "1. Dodaj osobe" << endl;
+        cout << "2. Edytuj dane" << endl;
+        cout << "3. Usun z bazy" << endl;
+        cout << "4. Przypisz osobe do wybranej listy" << endl;
+        cout << "5. Pokaz listy" << endl;
+        cout << "6. Wyjdz" << endl;
+        cout << "Wybor: ";
         cin >> wybor_uzytkownika;
 
         if (wybor_uzytkownika == 1) {
             for (int i = 0; i < N; i++) {
-                cout << "Wpisz nr " << i + 1 << endl;
-                cout << "Indeks: "; 
-                cin >> indeks;
-                cout << "Imie: "; 
-                cin >> imie;
-                cout << "Nazwisko: "; 
-                cin >> nazwisko;
-                cout << "Obecny (1/0): "; 
-                cin >> obecnosc;
-                dodaj_osobe();
+                cout << "Podaj dane dla osoby nr " << i + 1 << endl;
+                cout << "Indeks: "; cin >> nr_indeksu;
+                cout << "Imie: "; cin >> imie_osoby;
+                cout << "Nazwisko: "; cin >> nazwisko_osoby;
+                Osoba wpis(nr_indeksu, imie_osoby, nazwisko_osoby);
+                dodaj_osobe(baza_osob, wpis);
             }
-            pokaz_liste(tab_nazwisko, tab_obecnosc, tab_indeks, tab_imie);
         } 
         else if (wybor_uzytkownika == 2) {
-            cout << "Nazwisko do zmiany: ";
+            cout << "Podaj nazwisko osoby do edycji: ";
             cin >> tekst_do_edycji;
-            edytuj_osobe(tab_nazwisko, tab_indeks, tab_imie, tab_obecnosc, tekst_do_edycji);
-            pokaz_liste(tab_nazwisko, tab_obecnosc, tab_indeks, tab_imie);
+            edytuj_osobe(baza_osob, tekst_do_edycji);
         } 
         else if (wybor_uzytkownika == 3) {
-            cout << "Nazwisko do usuniecia: ";
+            cout << "Podaj nazwisko osoby do usuniecia: ";
             cin >> tekst_do_edycji;
-            usun_osobe(nazwisko, indeks, imie, obecnosc, tekst_do_edycji);
-            pokaz_liste(nazwisko, obecnosc, indeks, imie);
+            usun_osobe(baza_osob, tekst_do_edycji);
+        } 
+        else if (wybor_uzytkownika == 4) {
+            cout << "Podaj nazwisko: "; cin >> nazwisko_osoby;
+            cout << "Czy obecny? 1 - tak, 0 - nie: "; cin >> czy_obecny;
+            cout << "Do jakiej listy dodac? 1 albo 2: "; cin >> numer_wybranej_listy;
+            if (numer_wybranej_listy == 1) {
+                ustaw_obecnosc_na_liscie(baza_osob, wsk_lista1, obecnosc_lista1, nazwisko_osoby, czy_obecny);
+            } else if (numer_wybranej_listy == 2) {
+                ustaw_obecnosc_na_liscie(baza_osob, wsk_lista2, obecnosc_lista2, nazwisko_osoby, czy_obecny);
+            } else {
+                cout << "Zly numer listy!" << endl;
+            }
+        } 
+        else if (wybor_uzytkownika == 5) {
+            cout << "\nOsoby na liscie 1:" << endl;
+            pokaz_liste(wsk_lista1, obecnosc_lista1);
+            cout << "\nOsoby na liscie 2:" << endl;
+            pokaz_liste(wsk_lista2, obecnosc_lista2);
         } 
         else {
-            cout << "Wylaczanie bazy" << endl;
+            cout << "Koniec programu." << endl;
             czy_menu_aktywne = false;
         }
     }
