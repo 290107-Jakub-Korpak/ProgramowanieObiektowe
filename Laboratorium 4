@@ -1,0 +1,283 @@
+#include <iostream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+struct WpisObecnosci {
+    string nazwa_listy;
+    bool czy_obecny;
+};
+
+class Osoba {
+protected:
+    int indeks;
+    string imie;
+    string nazwisko;
+    vector<WpisObecnosci> listy;
+
+public:
+    Osoba(int startowy_indeks = 0, string startowe_imie = "", string startowe_nazwisko = "") {
+        indeks = startowy_indeks;
+        imie = startowe_imie;
+        nazwisko = startowe_nazwisko;
+    }
+    
+    virtual ~Osoba() {}
+
+    void ustaw_indeks(int wartosc) { indeks = wartosc; }
+    void ustaw_imie(string wartosc) { imie = wartosc; }
+    void ustaw_nazwisko(string wartosc) { nazwisko = wartosc; }
+    int pobierz_indeks() { return indeks; }
+    string pobierz_imie() { return imie; }
+    string pobierz_nazwisko() { return nazwisko; }
+    
+    void dodaj_do_listy(string nazwa_listy) {
+        for (auto& l : listy) {
+            if (l.nazwa_listy == nazwa_listy) return;
+        }
+        listy.push_back({nazwa_listy, false});
+    }
+
+    void ustaw_obecnosc(string nazwa_listy, bool obecnosc) {
+        for (auto& l : listy) {
+            if (l.nazwa_listy == nazwa_listy) {
+                l.czy_obecny = obecnosc;
+                return;
+            }
+        }
+    }
+
+    bool czy_jest_na_liscie(string nazwa_listy) {
+        for (auto& l : listy) {
+            if (l.nazwa_listy == nazwa_listy) return true;
+        }
+        return false;
+    }
+
+    bool pobierz_obecnosc(string nazwa_listy) {
+        for (auto& l : listy) {
+            if (l.nazwa_listy == nazwa_listy) return l.czy_obecny;
+        }
+        return false;
+    }
+
+    virtual void wyswietl_info() { 
+        cout << indeks << " - " << imie << " " << nazwisko; 
+    }
+};
+
+class Student : public Osoba {
+protected:
+    string kierunek;
+    int semestr;
+public:
+    Student(int inx = 0, string im = "", string naz = "", string kier = "", int sem = 0) 
+        : Osoba(inx, im, naz), kierunek(kier), semestr(sem) {}
+
+    void setKierunek(string nowy_kierunek) { kierunek = nowy_kierunek; }
+    void setSemestr(int nowy_sem) { semestr = nowy_sem; }
+    
+    void wyswietl_info() override { 
+        cout << "[STUDENT] " << indeks << " - " << imie << " " << nazwisko << " (" << kierunek << ", semestr: " << semestr << ")"; 
+    }
+};
+
+class StudentZaoczny : public Student {
+public:
+    StudentZaoczny(int inx = 0, string im = "", string naz = "", string kier = "", int sem = 0) 
+        : Student(inx, im, naz, kier, sem) {}
+
+    void wyswietl_info() override { 
+        cout << "[STUDENT ZAOCZNY] " << indeks << " - " << imie << " " << nazwisko << " (" << kierunek << ", semestr: " << semestr << ")"; 
+    }
+};
+
+class Prowadzacy : public Osoba {
+protected:
+    string tytul_naukowy;
+    string przedmiot;
+public:
+    Prowadzacy(int inx = 0, string im = "", string naz = "", string tytul = "", string przedm = "")
+        : Osoba(inx, im, naz), tytul_naukowy(tytul), przedmiot(przedm) {}
+
+    void setTytul(string nowy_tytul) { tytul_naukowy = nowy_tytul; }
+    void setPrzedmiot(string nowy_przedmiot) { przedmiot = nowy_przedmiot; }
+
+    void wyswietl_info() override { 
+        cout << "[PROWADZACY] ID: " << indeks << " - " << tytul_naukowy << " " << imie << " " << nazwisko << " (Przedmiot: " << przedmiot << ")"; 
+    }
+};
+
+class listaObecnosci {
+private:
+    vector<Osoba*> baza_osob;
+
+    int szukaj_osoby(string szukane_nazwisko) {
+        for (int i = 0; i < (int)baza_osob.size(); i++) {
+            if (baza_osob[i]->pobierz_nazwisko() == szukane_nazwisko) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+public:
+    listaObecnosci() {}
+
+    ~listaObecnosci() {
+        for (auto o : baza_osob) {
+            delete o;
+        }
+    }
+
+    void dodaj_osobe(Osoba* nowa_osoba) {
+        baza_osob.push_back(nowa_osoba);
+    }
+
+    void edytuj_osobe(string tekst_do_edycji) {
+        int i = szukaj_osoby(tekst_do_edycji);
+        if (i != -1) {
+            int nowy_indeks;
+            string nowe_imie, nowe_nazwisko;
+            cout << "Podaj nowy indeks: "; cin >> nowy_indeks;
+            cout << "Podaj nowe imie: "; cin >> nowe_imie;
+            cout << "Podaj nowe nazwisko: "; cin >> nowe_nazwisko;
+            baza_osob[i]->ustaw_indeks(nowy_indeks);
+            baza_osob[i]->ustaw_imie(nowe_imie);
+            baza_osob[i]->ustaw_nazwisko(nowe_nazwisko);
+        } else {
+            cout << "Nie znaleziono takiego nazwiska!" << endl;
+        }
+    }
+
+    void usun_osobe(string tekst_do_edycji) {
+        int pozycja = szukaj_osoby(tekst_do_edycji);
+        if (pozycja != -1) {
+            delete baza_osob[pozycja];
+            baza_osob.erase(baza_osob.begin() + pozycja);
+            cout << "Osoba usunieta." << endl;
+        } else {
+            cout << "Nie ma kogo usunac, brak nazwiska w bazie." << endl;
+        }
+    }
+
+    void dodaj_do_listy(string nazwa_listy, string nazwisko_osoby) {
+        int i = szukaj_osoby(nazwisko_osoby);
+        if (i != -1) {
+            baza_osob[i]->dodaj_do_listy(nazwa_listy);
+            cout << "Dodano do listy " << nazwa_listy << "." << endl;
+        } else {
+            cout << "Nie znaleziono osoby w bazie." << endl;
+        }
+    }
+
+    void ustaw_obecnosc(string nazwa_listy, string nazwisko_osoby, bool czy_obecny) {
+        int i = szukaj_osoby(nazwisko_osoby);
+        if (i != -1) {
+            if (baza_osob[i]->czy_jest_na_liscie(nazwa_listy)) {
+                baza_osob[i]->ustaw_obecnosc(nazwa_listy, czy_obecny);
+            } else {
+                cout << "Osoby nie ma na tej liscie." << endl;
+            }
+        } else {
+            cout << "Nie znaleziono osoby w bazie." << endl;
+        }
+    }
+
+    void wyswietl(string nazwa_listy) {
+        cout << "\nOsoby na liscie: " << nazwa_listy << endl;
+        bool ktos_jest = false;
+        
+        for (auto o : baza_osob) {
+            if (o->czy_jest_na_liscie(nazwa_listy)) {
+                ktos_jest = true;
+                o->wyswietl_info();
+                cout << " obecnosc: " << o->pobierz_obecnosc(nazwa_listy) << endl;
+            }
+        }
+        
+        if (!ktos_jest) {
+            cout << "Brak osob na tej liscie." << endl;
+        }
+    }
+};
+
+int main() {
+    listaObecnosci system_obecnosci;
+    bool czy_menu_aktywne = true;
+    int wybor_uzytkownika;
+    string imie_osoby, nazwisko_osoby, tekst_do_edycji;
+    int nr_indeksu;
+    string nazwa_wybranej_listy;
+    bool czy_obecny;
+
+    cout << "Program do obslugi list studentow" << endl;
+
+    while (czy_menu_aktywne) {
+        cout << "\n=============================" << endl;
+        cout << "Wybierz opcje:" << endl;
+        cout << "1. Utworz osobe" << endl;
+        cout << "2. Dodaj osobe do listy" << endl;
+        cout << "3. Ustaw obecnosc osoby na liscie" << endl;
+        cout << "4. Usun osobe z bazy" << endl;
+        cout << "5. Zmien dane osoby" << endl;
+        cout << "6. Wyswietl liste" << endl;
+        cout << "7. Wyjdz" << endl;
+        cout << "8. Zaladuj zestaw testowy do bazy" << endl;
+        cout << "Wybor: ";
+        cin >> wybor_uzytkownika;
+
+        system("clear");
+
+        if (wybor_uzytkownika == 1) {
+            cout << "Indeks: "; cin >> nr_indeksu;
+            cout << "Imie: "; cin >> imie_osoby;
+            cout << "Nazwisko: "; cin >> nazwisko_osoby;
+            Osoba* wpis = new Osoba(nr_indeksu, imie_osoby, nazwisko_osoby);
+            system_obecnosci.dodaj_osobe(wpis);
+        } 
+        else if (wybor_uzytkownika == 2) {
+            cout << "Podaj nazwisko: "; cin >> nazwisko_osoby;
+            cout << "Do jakiej listy dodac? (podaj nazwe, np. Wyklad_1): "; cin >> nazwa_wybranej_listy;
+            system_obecnosci.dodaj_do_listy(nazwa_wybranej_listy, nazwisko_osoby);
+        } 
+        else if (wybor_uzytkownika == 3) {
+            cout << "Podaj nazwisko: "; cin >> nazwisko_osoby;
+            cout << "Ustaw obecnosc (1 - tak, 0 - nie): "; cin >> czy_obecny;
+            cout << "Na jakiej liscie? (podaj nazwe): "; cin >> nazwa_wybranej_listy;
+            system_obecnosci.ustaw_obecnosc(nazwa_wybranej_listy, nazwisko_osoby, czy_obecny);
+        } 
+        else if (wybor_uzytkownika == 4) {
+            cout << "Podaj nazwisko osoby do usuniecia: ";
+            cin >> tekst_do_edycji;
+            system_obecnosci.usun_osobe(tekst_do_edycji);
+        } 
+        else if (wybor_uzytkownika == 5) {
+            cout << "Podaj nazwisko osoby do edycji: ";
+            cin >> tekst_do_edycji;
+            system_obecnosci.edytuj_osobe(tekst_do_edycji);
+        } 
+        else if (wybor_uzytkownika == 6) {
+            cout << "Ktora liste chcesz wyswietlic (podaj nazwe): "; 
+            cin >> nazwa_wybranej_listy;
+            system_obecnosci.wyswietl(nazwa_wybranej_listy);
+        } 
+        else if (wybor_uzytkownika == 7) {
+            cout << "Koniec programu." << endl;
+            czy_menu_aktywne = false;
+        }
+        else if (wybor_uzytkownika == 8) {
+            system_obecnosci.dodaj_osobe(new Osoba(1, "Jan", "Kowalski"));
+            system_obecnosci.dodaj_osobe(new Student(2, "Anna", "Nowak", "Informatyka", 3));
+            system_obecnosci.dodaj_osobe(new Prowadzacy(3, "Piotr", "Wisniewski", "Dr", "Programowanie"));
+            system_obecnosci.dodaj_osobe(new StudentZaoczny(4, "Michal", "Zalewski", "Zarzadzanie", 5));
+            cout << "Baza zawiera teraz rozne typy (Osoba, Student, Prowadzacy)." << endl;
+            cout << "Uzyj opcji 2 zeby dodac ich np. do listy 'Test', a nastepnie opcji 6 zeby to zobaczyc." << endl;
+        }
+        else {
+            cout << "Brak takiej opcji." << endl;
+        }
+    }
+    return 0;
+}
