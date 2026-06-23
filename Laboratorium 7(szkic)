@@ -2,71 +2,146 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <map>
+
 using namespace std;
 
-
-/*
-class IExportowalny {
-  zamiast stringa ma byc mapa   
-};
-*/
-
-/*
-void Exporter() {
-    ma konwertowac na plik txt
-}
-*/
-/*
-void Exporter2() {
-    ma konwertowac na csv
-}
-*/
-
-/*
-map<string,string> dane = obj -> eksportuj();
-map<string, string>::iterator it;
-for (it = dane.begin(); it=! dane.end(); it++) {
-    plik << it ->first << ":" << it->second << "\n";
-}
-
-
-*/
-
-
-
-class IExportowalny {
-    map<string,string> dane = obj -> eksportuj();
-    map<string, string>::iterator it;
-for (it = dane.begin(); it=! dane.end(); it++) {
-    plik << it ->first << ":" << it->second << "\n";
-    }
-};
-
-void EXporter() {
-    ofstream("plik.txt");
-    
-}
 struct WpisObecnosci {
     string nazwa_listy;
     bool czy_obecny;
 };
+
 class Przedstawialny {
 public:
     virtual string przedstawSie() const = 0;
     virtual ~Przedstawialny() {}
 };
-class Serializable {
+
+class IEksportowalny {
 public:
-    virtual void serializuj(ostream& out) const = 0;
-    virtual ~Serializable() {}
+    virtual map<string, string> eksportuj() const = 0;
+    virtual vector<map<string, string>> eksportujListeObecnosci() const = 0;
+    virtual ~IEksportowalny() {}
 };
+
+class IEksporter {
+public:
+    virtual void wykonajEksport(const IEksportowalny* obj, string nazwaPliku) const = 0;
+    virtual ~IEksporter() {}
+};
+
+class EksporterTxt : public IEksporter {
+public:
+    void wykonajEksport(const IEksportowalny* obj, string nazwaPliku) const override {
+        ofstream plik(nazwaPliku, ios::app);
+        if (!plik) {
+            cout << "Uwaga: problem z wygenerowaniem pliku TXT.\n";
+            return;
+        }
+
+        map<string, string> dane = obj->eksportuj();
+        map<string, string>::const_iterator it;
+
+        plik << "[" << dane.at("Typ") << "]\n";
+        for (it = dane.begin(); it != dane.end(); ++it) {
+            if (it->first != "Typ") {
+                plik << it->first << ": " << it->second << "\n";
+            }
+        }
+        plik << "------------------------\n";
+        plik.close();
+    }
+};
+
+class EksporterCsv : public IEksporter {
+public:
+    void wykonajEksport(const IEksportowalny* obj, string nazwaPliku) const override {
+        ofstream plik(nazwaPliku, ios::app);
+        if (!plik) {
+            cout << "Uwaga: zapis do formatu CSV nie powiodl sie.\n";
+            return;
+        }
+
+        map<string, string> dane = obj->eksportuj();
+        map<string, string>::const_iterator it;
+
+        bool pierwszy = true;
+        for (it = dane.begin(); it != dane.end(); ++it) {
+            if (!pierwszy) plik << ",";
+            plik << it->second;
+            pierwszy = false;
+        }
+        plik << "\n";
+        plik.close();
+    }
+};
+
+class EksporterListaObecnosciTxt : public IEksporter {
+public:
+    void wykonajEksport(const IEksportowalny* obj, string nazwaPliku) const override {
+        ofstream plik(nazwaPliku, ios::app);
+        if (!plik) {
+            cout << "Uwaga: niemozliwy eksport frekwencji do pliku tekstowego.\n";
+            return;
+        }
+
+        map<string, string> dane = obj->eksportuj();
+        plik << "[Lista obecnosci: " << dane.at("Imie") << " " << dane.at("Nazwisko") << "]\n";
+
+        vector<map<string, string>> listy = obj->eksportujListeObecnosci();
+        if (listy.empty()) {
+            plik << "  Brak list obecnosci.\n";
+        } else {
+            for (const auto& wpis : listy) {
+                map<string, string>::const_iterator it;
+                for (it = wpis.begin(); it != wpis.end(); ++it) {
+                    plik << it->first << ": " << it->second << "\n";
+                }
+                plik << "\n";
+            }
+        }
+        plik << "------------------------\n";
+        plik.close();
+    }
+};
+
+class EksporterListaObecnosciCsv : public IEksporter {
+public:
+    void wykonajEksport(const IEksportowalny* obj, string nazwaPliku) const override {
+        ofstream plik(nazwaPliku, ios::app);
+        if (!plik) {
+            cout << "Uwaga: awaria zapisu frekwencji jako arkusz CSV.\n";
+            return;
+        }
+
+        map<string, string> dane = obj->eksportuj();
+        string pelneNazwisko = dane.at("Imie") + " " + dane.at("Nazwisko");
+
+        vector<map<string, string>> listy = obj->eksportujListeObecnosci();
+        if (listy.empty()) {
+            plik << pelneNazwisko << ",brak list\n";
+        } else {
+            for (const auto& wpis : listy) {
+                plik << pelneNazwisko;
+                map<string, string>::const_iterator it;
+                for (it = wpis.begin(); it != wpis.end(); ++it) {
+                    plik << "," << it->second;
+                }
+                plik << "\n";
+            }
+        }
+        plik.close();
+    }
+};
+
 class Drukarka {
 public:
     static void drukuj(const Przedstawialny& obj) {
         cout << obj.przedstawSie() << endl;
     }
 };
-class Osoba : public Przedstawialny, public Serializable {
+
+class Osoba : public Przedstawialny, public IEksportowalny {
 protected:
     int indeks;
     string imie;
@@ -74,6 +149,7 @@ protected:
     string data_urodzenia;
     float wzrost;
     vector<WpisObecnosci> listy;
+
     string formatujListy() const {
         string wynik;
         if (listy.empty()) {
@@ -87,6 +163,7 @@ protected:
         }
         return wynik;
     }
+
 public:
     Osoba(int startowy_indeks = 0, string startowe_imie = "", string startowe_nazwisko = "", string data_ur = "Brak", float wzr = 0.0f) {
         indeks = startowy_indeks;
@@ -96,6 +173,7 @@ public:
         wzrost = wzr;
     }
     virtual ~Osoba() {}
+
     virtual void ustaw() {
         cout << "Indeks: "; cin >> indeks;
         cout << "Imie: "; cin >> imie;
@@ -103,6 +181,7 @@ public:
         cout << "Data urodzenia: "; cin >> data_urodzenia;
         cout << "Wzrost: "; cin >> wzrost;
     }
+
     virtual void edytuj() {
         cout << "Nowy indeks: "; cin >> indeks;
         cout << "Nowe imie: "; cin >> imie;
@@ -110,18 +189,22 @@ public:
         cout << "Nowa data urodzenia: "; cin >> data_urodzenia;
         cout << "Nowy wzrost: "; cin >> wzrost;
     }
+
     void ustaw_indeks(int wartosc) { indeks = wartosc; }
     void ustaw_imie(string wartosc) { imie = wartosc; }
     void ustaw_nazwisko(string wartosc) { nazwisko = wartosc; }
+
     int pobierz_indeks() { return indeks; }
     string pobierz_imie() { return imie; }
     string pobierz_nazwisko() { return nazwisko; }
+
     void dodaj_do_listy(string nazwa_listy) {
         for (auto& l : listy) {
             if (l.nazwa_listy == nazwa_listy) return;
         }
         listy.push_back({nazwa_listy, false});
     }
+
     void ustaw_obecnosc(string nazwa_listy, bool obecnosc) {
         for (auto& l : listy) {
             if (l.nazwa_listy == nazwa_listy) {
@@ -130,45 +213,63 @@ public:
             }
         }
     }
+
     bool czy_jest_na_liscie(string nazwa_listy) {
         for (auto& l : listy) {
             if (l.nazwa_listy == nazwa_listy) return true;
         }
         return false;
     }
+
     bool pobierz_obecnosc(string nazwa_listy) {
         for (auto& l : listy) {
             if (l.nazwa_listy == nazwa_listy) return l.czy_obecny;
         }
         return false;
     }
+
     string przedstawSie() const override {
         string s = "[" + getTyp() + "] " + to_string(indeks) + " - " + imie + " " + nazwisko + "\n";
         s += "Data urodzenia: " + data_urodzenia + " | Wzrost: " + to_string(wzrost) + " cm\n";
         s += formatujListy();
         return s;
     }
+
     virtual void wyswietl_info() { 
         Drukarka::drukuj(*this);
     }
+
     virtual string getTyp() const { return "OSOBA"; }
-    void serializuj(ostream& out) const override {
-        out << "[" << getTyp() << "]\n";
-        out << "Indeks: " << indeks << "\n";
-        out << "Imie: " << imie << "\n";
-        out << "Nazwisko: " << nazwisko << "\n";
-        out << "DataUrodzenia: " << data_urodzenia << "\n";
-        out << "Wzrost: " << wzrost << "\n";
-        if (listy.empty()) {
-            out << "Listy: brak\n";
-        } else {
-            for (const auto& l : listy) {
-                out << "Lista: " << l.nazwa_listy << " = " << (l.czy_obecny ? "Obecny" : "Nieobecny") << "\n";
-            }
+
+    map<string, string> eksportuj() const override {
+        string listyStr;
+        for (const auto& l : listy) {
+            listyStr += l.nazwa_listy + "=" + (l.czy_obecny ? "Obecny" : "Nieobecny") + " ";
         }
+        string przygotowaneListy = listyStr.empty() ? "brak" : listyStr.substr(0, listyStr.length() - 1);
+
+        return {
+            {"Typ", getTyp()},
+            {"Indeks", to_string(indeks)},
+            {"Imie", imie},
+            {"Nazwisko", nazwisko},
+            {"DataUrodzenia", data_urodzenia},
+            {"Wzrost", to_string(wzrost)},
+            {"Listy", przygotowaneListy}
+        };
+    }
+
+    vector<map<string, string>> eksportujListeObecnosci() const override {
+        vector<map<string, string>> wynik;
+        for (const auto& l : listy) {
+            map<string, string> wpis;
+            wpis["Nazwa"] = l.nazwa_listy;
+            wpis["Status"] = l.czy_obecny ? "Obecny" : "Nieobecny";
+            wynik.push_back(wpis);
+        }
+        return wynik;
     }
 };
-
 
 class Student : public Osoba {
 protected:
@@ -177,36 +278,46 @@ protected:
 public:
     Student(int inx = 0, string im = "", string naz = "", string kier = "", int sem = 0, string data_ur = "Brak", float wzr = 0.0f) 
         : Osoba(inx, im, naz, data_ur, wzr), kierunek(kier), semestr(sem) {}
+
     void ustaw() override {
         Osoba::ustaw();
         cout << "Kierunek: "; cin >> kierunek;
         cout << "Semestr: "; cin >> semestr;
     }
+
     void edytuj() override {
         Osoba::edytuj();
         cout << "Nowy kierunek: "; cin >> kierunek;
         cout << "Nowy semestr: "; cin >> semestr;
     }
+
     void setKierunek(string nowy_kierunek) { kierunek = nowy_kierunek; }
     void setSemestr(int nowy_sem) { semestr = nowy_sem; }
+
     string getTyp() const override { return "STUDENT"; }
+
     string przedstawSie() const override {
         string s = "[" + getTyp() + "] " + to_string(indeks) + " - " + imie + " " + nazwisko + " (" + kierunek + ", semestr: " + to_string(semestr) + ")\n";
         s += "Data urodzenia: " + data_urodzenia + " | Wzrost: " + to_string(wzrost) + " cm\n";
         s += formatujListy();
         return s;
     }
-    void serializuj(ostream& out) const override {
-        Osoba::serializuj(out);
-        out << "Kierunek: " << kierunek << "\n";
-        out << "Semestr: " << semestr << "\n";
+
+    map<string, string> eksportuj() const override {
+        map<string, string> dane = Osoba::eksportuj();
+        dane["Kierunek"] = kierunek;
+        dane["Semestr"] = to_string(semestr);
+        return dane;
     }
 };
+
 class StudentZaoczny : public Student {
 public:
     StudentZaoczny(int inx = 0, string im = "", string naz = "", string kier = "", int sem = 0, string data_ur = "Brak", float wzr = 0.0f) 
         : Student(inx, im, naz, kier, sem, data_ur, wzr) {}
+
     string getTyp() const override { return "STUDENT ZAOCZNY"; }
+
     string przedstawSie() const override {
         string s = "[" + getTyp() + "] " + to_string(indeks) + " - " + imie + " " + nazwisko + " (" + kierunek + ", semestr: " + to_string(semestr) + ")\n";
         s += "Data urodzenia: " + data_urodzenia + " | Wzrost: " + to_string(wzrost) + " cm\n";
@@ -214,6 +325,7 @@ public:
         return s;
     }
 };
+
 class Prowadzacy : public Osoba {
 protected:
     string tytul_naukowy;
@@ -221,34 +333,43 @@ protected:
 public:
     Prowadzacy(int inx = 0, string im = "", string naz = "", string tytul = "", string przedm = "", string data_ur = "Brak", float wzr = 0.0f)
         : Osoba(inx, im, naz, data_ur, wzr), tytul_naukowy(tytul), przedmiot(przedm) {}
+
     void ustaw() override {
         Osoba::ustaw();
         cout << "Tytul naukowy: "; cin >> tytul_naukowy;
         cout << "Przedmiot: "; cin >> przedmiot;
     }
+
     void edytuj() override {
         Osoba::edytuj();
         cout << "Nowy tytul naukowy: "; cin >> tytul_naukowy;
         cout << "Nowy przedmiot: "; cin >> przedmiot;
     }
+
     void setTytul(string nowy_tytul) { tytul_naukowy = nowy_tytul; }
     void setPrzedmiot(string nowy_przedmiot) { przedmiot = nowy_przedmiot; }
+
     string getTyp() const override { return "PROWADZACY"; }
+
     string przedstawSie() const override {
         string s = "[" + getTyp() + "] ID: " + to_string(indeks) + " - " + tytul_naukowy + " " + imie + " " + nazwisko + " (Przedmiot: " + przedmiot + ")\n";
         s += "Data urodzenia: " + data_urodzenia + " | Wzrost: " + to_string(wzrost) + " cm\n";
         s += formatujListy();
         return s;
     }
-    void serializuj(ostream& out) const override {
-        Osoba::serializuj(out);
-        out << "Tytul naukowy: " << tytul_naukowy << "\n";
-        out << "Przedmiot: " << przedmiot << "\n";
+
+    map<string, string> eksportuj() const override {
+        map<string, string> dane = Osoba::eksportuj();
+        dane["Tytul naukowy"] = tytul_naukowy;
+        dane["Przedmiot"] = przedmiot;
+        return dane;
     }
 };
+
 class listaObecnosci {
 private:
     vector<Osoba*> baza_osob;
+
     int szukaj_osoby(string szukane_nazwisko) {
         for (int i = 0; i < (int)baza_osob.size(); i++) {
             if (baza_osob[i]->pobierz_nazwisko() == szukane_nazwisko) {
@@ -257,6 +378,7 @@ private:
         }
         return -1;
     }
+
 public:
     listaObecnosci() {}
     ~listaObecnosci() {
@@ -264,9 +386,11 @@ public:
             delete o;
         }
     }
+
     void dodaj_osobe(Osoba* nowa_osoba) {
         baza_osob.push_back(nowa_osoba);
     }
+
     void edytuj_osobe(string tekst_do_edycji) {
         int i = szukaj_osoby(tekst_do_edycji);
         if (i != -1) {
@@ -276,6 +400,7 @@ public:
             cout << "Nie znaleziono takiego nazwiska!" << endl;
         }
     }
+
     void usun_osobe(string tekst_do_edycji) {
         int pozycja = szukaj_osoby(tekst_do_edycji);
         if (pozycja != -1) {
@@ -286,6 +411,7 @@ public:
             cout << "Nie ma kogo usunac, brak nazwiska w bazie." << endl;
         }
     }
+
     void dodaj_do_listy(string nazwa_listy, string nazwisko_osoby) {
         int i = szukaj_osoby(nazwisko_osoby);
         if (i != -1) {
@@ -295,6 +421,7 @@ public:
             cout << "Nie znaleziono osoby w bazie." << endl;
         }
     }
+
     void ustaw_obecnosc(string nazwa_listy, string nazwisko_osoby, bool czy_obecny) {
         int i = szukaj_osoby(nazwisko_osoby);
         if (i != -1) {
@@ -307,6 +434,7 @@ public:
             cout << "Nie znaleziono osoby w bazie." << endl;
         }
     }
+
     void wyswietl(string nazwa_listy) {
         cout << "\nOsoby na liscie: " << nazwa_listy << endl;
         cout << "--------------------------------------" << endl;
@@ -321,36 +449,35 @@ public:
             cout << "Brak osob na tej liscie." << endl;
         }
     }
-    void zapisz_do_pliku(int tryb, const string& nazwa_pliku, const string& szukane_nazwisko = "") {
+
+    void eksportuj_dane(IEksporter* eksporter, int tryb, const string& nazwa_pliku, const string& szukane_nazwisko = "") {
         if (baza_osob.empty()) {
             cout << "Baza jest pusta, brak danych do zapisu.\n";
             return;
         }
-        ofstream out(nazwa_pliku);
-        if (!out) {
-            cout << "Nie mozna otworzyc/utworzyc pliku!\n";
-            return;
-        }
+
+        ofstream czyscPlik(nazwa_pliku, ios::trunc);
+        czyscPlik.close();
+
         if (tryb == 1) {
             for (auto o : baza_osob) {
-                o->serializuj(out);
-                out << "------------------------\n";
+                eksporter->wykonajEksport(o, nazwa_pliku);
             }
             cout << "Zapisano " << baza_osob.size() << " osob do pliku: " << nazwa_pliku << "\n";
         } else if (tryb == 2) {
             int i = szukaj_osoby(szukane_nazwisko);
             if (i != -1) {
-                baza_osob[i]->serializuj(out);
-                cout << "Zapisano dane osoby " << szukane_nazwisko << " do pliku: " << nazwa_pliku << "\n";
+                eksporter->wykonajEksport(baza_osob[i], nazwa_pliku);
+                cout << "Zapisano dane do pliku: " << nazwa_pliku << "\n";
             } else {
                 cout << "Nie znaleziono osoby o nazwisku: " << szukane_nazwisko << "\n";
             }
         } else {
             cout << "Nieprawidlowy tryb zapisu.\n";
         }
-        out.close();
     }
 };
+
 int main() {
     listaObecnosci system_obecnosci;
     bool czy_menu_aktywne = true;
@@ -359,7 +486,9 @@ int main() {
     int nr_indeksu;
     string nazwa_wybranej_listy;
     bool czy_obecny;
+
     cout << "Program do obslugi list studentow" << endl;
+
     while (czy_menu_aktywne) {
         cout << "\n=============================" << endl;
         cout << "Wybierz opcje:" << endl;
@@ -371,10 +500,11 @@ int main() {
         cout << "6. Wyswietl liste" << endl;
         cout << "7. Wyjdz" << endl;
         cout << "8. Zaladuj zestaw testowy do bazy" << endl;
-        cout << "9. Zapisz do pliku" << endl;
+        cout << "9. Zapisz do pliku (Wiele formatow)" << endl;
         cout << "Wybor: ";
         cin >> wybor_uzytkownika;
-        system("clear");
+        system("clear"); 
+
         if (wybor_uzytkownika == 1) {
             string data_ur;
             float wzr;
@@ -414,32 +544,50 @@ int main() {
             system_obecnosci.dodaj_osobe(new Student(2, "Anna", "Nowak", "Informatyka", 3, "15.05.2001", 165.0f));
             system_obecnosci.dodaj_osobe(new Prowadzacy(3, "Piotr", "Wisniewski", "Dr", "Programowanie", "10.10.1980", 178.0f));
             system_obecnosci.dodaj_osobe(new StudentZaoczny(4, "Michal", "Zalewski", "Zarzadzanie", 5, "20.12.1999", 190.0f));
-            cout << "Baza zawiera teraz rozne typy (Osoba, Student, Prowadzacy)." << endl;
-            cout << "Uzyj opcji 2 zeby dodac ich np. do listy 'Test', a nastepnie opcji 6 zeby to zobaczyc." << endl;
+            cout << "Baza zawiera teraz rozne typy." << endl;
         } else if (wybor_uzytkownika == 9) {
+            cout << "Co chcesz wyeksportowac?\n1. Dane podstawowe osoby\n2. Listy obecnosci\nWybor: ";
+            int coZapisac; cin >> coZapisac;
+
+            cout << "Wybierz format pliku:\n1. Tekstowy (TXT)\n2. Arkusz (CSV)\nWybor: ";
+            int formatWybor; cin >> formatWybor;
+
+            IEksporter* eksporter = nullptr;
+            if (coZapisac == 1) {
+                if (formatWybor == 1) eksporter = new EksporterTxt();
+                else if (formatWybor == 2) eksporter = new EksporterCsv();
+            } else if (coZapisac == 2) {
+                if (formatWybor == 1) eksporter = new EksporterListaObecnosciTxt();
+                else if (formatWybor == 2) eksporter = new EksporterListaObecnosciCsv();
+            }
+
+            if (!eksporter) {
+                cout << "Nieprawidlowy wybor!\n";
+                continue;
+            }
+
             int tryb;
             string nazwa_pliku;
-            cout << "Zapisac (1) cala liste czy (2) jedna osobe? ";
+            cout << "Zapisac cala liste (1) czy jedna osobe (2)? ";
             cin >> tryb;
-            cout << "Podaj nazwe pliku (np. dane.txt): ";
+            cout << "Podaj nazwe pliku (np. dane.txt/csv): ";
             cin >> nazwa_pliku;
+
             if (tryb == 1) {
-                system_obecnosci.zapisz_do_pliku(tryb, nazwa_pliku);
+                system_obecnosci.eksportuj_dane(eksporter, tryb, nazwa_pliku);
             } else if (tryb == 2) {
                 string nazwisko_szukane;
                 cout << "Podaj nazwisko osoby do zapisu: ";
                 cin >> nazwisko_szukane;
-                system_obecnosci.zapisz_do_pliku(tryb, nazwa_pliku, nazwisko_szukane);
+                system_obecnosci.eksportuj_dane(eksporter, tryb, nazwa_pliku, nazwisko_szukane);
             } else {
                 cout << "Nieprawidlowy wybor trybu.\n";
             }
+
+            delete eksporter;
         } else {
             cout << "Brak takiej opcji." << endl;
         }
     }
     return 0;
 }
-/*
-1.zamiast tego zwyklego interfejsu zrobic nowy o nazwie eksportowalny, ma zamiast stringa zwracac mape(student, prowadzący), 2.stworzyc nowy 
-interfejs - IExporter(do pliku txt) IExporter (do pliku csv),
-*/
